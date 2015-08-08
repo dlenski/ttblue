@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <time.h>
+#include <stddef.h>
 
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -156,18 +157,21 @@ static int l2cap_le_att_connect_fast(bdaddr_t *src, bdaddr_t *dst, uint8_t dst_t
 
 #define BARRAY(...) (const uint8_t[]){ __VA_ARGS__ }
 
+typedef struct { uint8_t opcode; uint16_t handle; uint8_t buf[BT_ATT_DEFAULT_LE_MTU-3]; } __attribute__((packed)) ATT_PKT;
+typedef struct { uint8_t opcode; uint8_t buf[BT_ATT_DEFAULT_LE_MTU-1]; } __attribute__((packed)) ATT_PKT_NO_HANDLE;
+
 /* manually assemble ATT packets */
 int
 att_read(int fd, uint16_t handle, void *buf)
 {
     int result;
 
-    struct { uint8_t opcode; uint16_t handle; } __attribute__((packed)) pkt = { BT_ATT_OP_READ_REQ, handle };
-    result = send(fd, &pkt, sizeof(pkt), 0);
+    ATT_PKT pkt = { BT_ATT_OP_READ_REQ, handle };
+    result = send(fd, &pkt, offsetof(ATT_PKT, buf), 0);
     if (result<0)
         return result;
 
-    struct { uint8_t opcode; uint8_t buf[BT_ATT_DEFAULT_LE_MTU]; } __attribute__((packed)) rpkt = {0};
+    ATT_PKT_NO_HANDLE rpkt = { 0 };
     result = recv(fd, &rpkt, sizeof rpkt, 0);
     if (result<0)
         return result;
@@ -182,12 +186,12 @@ att_read(int fd, uint16_t handle, void *buf)
 int
 att_write(int fd, uint16_t handle, const void *buf, size_t length)
 {
-    struct { uint8_t opcode; uint16_t handle; uint8_t buf[length]; } __attribute__((packed)) pkt;
-    pkt.opcode = BT_ATT_OP_WRITE_CMD;
-    pkt.handle = handle;
+    ATT_PKT pkt = { BT_ATT_OP_WRITE_CMD, handle };
+    if (length > sizeof pkt.buf)
+        return -1;
     memcpy(pkt.buf, buf, length);
 
-    int result = send(fd, &pkt, sizeof(pkt), 0);
+    int result = send(fd, &pkt, offsetof(ATT_PKT, buf)+length, 0);
     if (result<0)
         return result;
 
@@ -197,12 +201,12 @@ att_write(int fd, uint16_t handle, const void *buf, size_t length)
 int
 att_wrreq(int fd, uint16_t handle, const void *buf, size_t length)
 {
-    struct { uint8_t opcode; uint16_t handle; uint8_t buf[length]; } __attribute__((packed)) pkt;
-    pkt.opcode = BT_ATT_OP_WRITE_REQ;
-    pkt.handle = handle;
+    ATT_PKT pkt = { BT_ATT_OP_WRITE_REQ, handle };
+    if (length > sizeof pkt.buf)
+        return -1;
     memcpy(pkt.buf, buf, length);
 
-    int result = send(fd, &pkt, sizeof(pkt), 0);
+    int result = send(fd, &pkt, offsetof(ATT_PKT, buf)+length, 0);
     if (result<0)
         return result;
 
@@ -221,7 +225,7 @@ att_wrreq(int fd, uint16_t handle, const void *buf, size_t length)
 int
 att_read_not(int fd, size_t *length, void *buf)
 {
-    struct { uint8_t opcode; uint16_t handle; uint8_t buf[BT_ATT_DEFAULT_LE_MTU]; } __attribute__((packed)) rpkt;
+    ATT_PKT rpkt;
     int result = recv(fd, &rpkt, sizeof rpkt, 0);
 
     if (result<0)

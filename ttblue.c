@@ -417,12 +417,12 @@ int main(int argc, const char **argv)
 
         fprintf(stderr, "Setting PHONE menu to '%s'.\n", hciname);
         tt_delete_file(fd, 0x00020002);
-        tt_write_file(fd, 0x00020002, false, hciname, strlen(hciname), 0);
+        tt_write_file(fd, 0x00020002, debug, hciname, strlen(hciname), 0);
 
         if (debug > 1) {
             uint32_t fileno = 0x000f20000;
             fprintf(stderr, "Reading preference file 0x%08x from watch...\n", fileno);
-            if ((length=tt_read_file(fd, fileno, 0, &fbuf)) < 0) {
+            if ((length=tt_read_file(fd, fileno, debug, &fbuf)) < 0) {
                 fprintf(stderr, "WARNING: Could not read preferences file 0x%08x from watch.\n", fileno);
             } else {
                 char filetime[16], filename[strlen("12345678_20150101_010101.bin") + 1];
@@ -459,7 +459,7 @@ int main(int argc, const char **argv)
                         fprintf(stderr, "Changing timezone from UTC%+d to UTC%+ld.\n", btohl(*watch_timezone), lt->tm_gmtoff);
                         *watch_timezone = htobl(lt->tm_gmtoff);
                         tt_delete_file(fd, 0x00850000);
-                        tt_write_file(fd, 0x00850000, false, fbuf, length, 0);
+                        tt_write_file(fd, 0x00850000, debug, fbuf, length, 0);
                         att_write(fd, H_CMD_STATUS, BARRAY(0x05, 0x85, 0x00, 0x00), 4); // update magic?
                     }
                 }
@@ -473,7 +473,7 @@ int main(int argc, const char **argv)
 
             time_t last_qfg_update = 0;
             uint32_t fileno = 0x00020001;
-            if ((length=tt_read_file(fd, fileno, 0, &fbuf)) < 0) {
+            if ((length=tt_read_file(fd, fileno, debug, &fbuf)) < 0) {
                 fprintf(stderr, "WARNING: Could not read GPS status file 0x%08x from watch.\n", fileno);
             } else {
                 struct tm tmp = { .tm_sec = 0, .tm_min = 0, .tm_hour = 0, .tm_mday = fbuf[0x05],
@@ -595,7 +595,7 @@ int main(int argc, const char **argv)
         if (debug > 1) {
             uint32_t fileno = 0x00020005;
             fprintf(stderr, "Reading file 0x%08x from watch...\n", fileno);
-            if ((length=tt_read_file(fd, fileno, 0, &fbuf)) < 0) {
+            if ((length=tt_read_file(fd, fileno, debug, &fbuf)) < 0) {
                 fprintf(stderr, "Could not read file 0x%08x from watch.\n", fileno);
             } else {
                 char filetime[16], filename[strlen("12345678_20150101_010101.bin") + 1];

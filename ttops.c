@@ -76,13 +76,18 @@ tt_read_file(int fd, uint32_t fileno, int debug, uint8_t **buf)
         return -EINVAL;
 
     uint8_t cmd[] = {1, (fileno>>16)&0xff, fileno&0xff, (fileno>>8)&0xff};
-    att_wrreq(fd, H_CMD_STATUS, cmd, sizeof cmd);
+    if (att_wrreq(fd, H_CMD_STATUS, cmd, sizeof cmd) < 0) {
+        fprintf(stderr, "tt_read_file: could not initiate READ command\n");
+        goto prealloc_fail;
+    }
     if (EXPECT_uint32(fd, H_CMD_STATUS, 1) < 0)
         goto prealloc_fail;
 
     int flen = EXPECT_LENGTH(fd);
-    if (flen < 0)
+    if (flen < 0) {
+        fprintf(stderr, "tt_read_file: could not get file length: %s (%d)\n", strerror(errno), errno);
         goto prealloc_fail;
+    }
 
     uint8_t *optr = *buf = malloc(flen + BT_ATT_DEFAULT_LE_MTU);
     const uint8_t *end = optr+flen;
@@ -151,12 +156,18 @@ tt_write_file(int fd, uint32_t fileno, int debug, const uint8_t *buf, uint32_t l
         return -EINVAL;
 
     uint8_t cmd[] = {0, (fileno>>16)&0xff, fileno&0xff, (fileno>>8)&0xff};
-    att_wrreq(fd, H_CMD_STATUS, cmd, sizeof cmd);
+    if (att_wrreq(fd, H_CMD_STATUS, cmd, sizeof cmd) < 0) {
+        fprintf(stderr, "tt_write_file: could not initiate WRITE command\n");
+        return -EBADMSG;
+    }
     if (EXPECT_uint32(fd, H_CMD_STATUS, 1) < 0)
        return -EBADMSG;
 
     uint32_t flen = htobl(length);
-    att_wrreq(fd, H_LENGTH, &flen, sizeof flen);
+    if (att_wrreq(fd, H_LENGTH, &flen, sizeof flen) < 0) {
+        fprintf(stderr, "tt_write_file: could not send file length: %s (%d)\n", strerror(errno), errno);
+        return -EBADMSG;
+    }
 
     const uint8_t *iptr = buf;
     const uint8_t *end = iptr+length;
@@ -246,7 +257,10 @@ tt_delete_file(int fd, uint32_t fileno)
         return -EINVAL;
 
     uint8_t cmd[] = {4, (fileno>>16)&0xff, fileno&0xff, (fileno>>8)&0xff};
-    att_wrreq(fd, H_CMD_STATUS, cmd, sizeof cmd);
+    if (att_wrreq(fd, H_CMD_STATUS, cmd, sizeof cmd) < 0) {
+        fprintf(stderr, "tt_delete_file: could not initiate DELETE command\n");
+        return -EBADMSG;
+    }
     if (EXPECT_uint32(fd, H_CMD_STATUS, 1) < 0)
         return -EBADMSG;
 
@@ -271,7 +285,10 @@ tt_list_sub_files(int fd, uint32_t fileno, uint16_t **outlist)
         return -EINVAL;
 
     uint8_t cmd[] = {3, (fileno>>16)&0xff, fileno&0xff, (fileno>>8)&0xff};
-    att_wrreq(fd, H_CMD_STATUS, cmd, sizeof cmd);
+    if (att_wrreq(fd, H_CMD_STATUS, cmd, sizeof cmd) < 0) {
+        fprintf(stderr, "tt_list_sub_files: could not initiate LIST command\n");
+        return -EBADMSG;
+    }
     if (EXPECT_uint32(fd, H_CMD_STATUS, 1) < 0)
         return -EBADMSG;
 

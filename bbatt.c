@@ -10,6 +10,8 @@
 
 #include <string.h>
 #include <sys/socket.h>
+#include <stdio.h>
+#include <errno.h>
 #include "bbatt.h"
 
 int
@@ -70,9 +72,11 @@ att_wrreq(int fd, uint16_t handle, const void *buf, int length)
 
     uint8_t conf = 0;
     result = recv(fd, &conf, 1, 0);
-    if (result < 0)
+    if (result < 0) {
+        fprintf(stderr, "att_wrreq: error in WRITE_REQ response: %s (%d)\n", strerror(errno), errno);
         return result;
-    else if (conf != BT_ATT_OP_WRITE_RSP) {
+    } else if (conf != BT_ATT_OP_WRITE_RSP) {
+        fprintf(stderr, "att_wrreq: error in WRITE_REQ response: got opcode %d not %d\n", conf, BT_ATT_OP_WRITE_RSP);
         return -2;
     }
 

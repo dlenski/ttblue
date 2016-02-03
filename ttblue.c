@@ -32,8 +32,11 @@
 #include "ttops.h"
 
 #define BARRAY(...) (const uint8_t[]){ __VA_ARGS__ }
-#define GQF_GPS_URL "http://gpsquickfix.services.tomtom.com/fitness/sifgps.f2p3enc.ee?timestamp=%ld"
+//#define GQF_GPS_URL "http://gpsquickfix.services.tomtom.com/fitness/sifgps.f2p3enc.ee?timestamp=%ld"
 #define GQF_GLONASS_URL "http://gpsquickfix.services.tomtom.com/fitness/sifglo.f2p3enc.ee?timestamp=%ld"
+
+// alternate source for 14-day version: https://github.com/felixge/node-ar-drone/issues/74#issuecomment-25722745
+#define GQF_GPS_URL "http://download.parrot.com/ephemerides/packedDifference.f2p3enc.ee?timestamp=%ld"
 
 /**
  * taken from bluez/tools/btgatt-client.c

@@ -143,6 +143,13 @@ tt_authorize(int fd, uint32_t code, bool new_code)
 }
 
 int
+tt_tell_time(int fd)
+{
+    struct { uint8_t cmd; uint32_t timestamp; } __attribute__((packed)) cmd = {8, htobl((uint32_t) time(NULL))};
+    return att_wrreq(fd, H_CMD_STATUS, &cmd, sizeof cmd);
+}
+
+int
 tt_reboot(int fd)
 {
     // ... then overwhelm the device with a torrent of zeros to the status register

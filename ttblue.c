@@ -509,6 +509,8 @@ int main(int argc, const char **argv)
         }
 #endif
 
+//        tt_tell_time(fd);
+
         if (set_time) {
             uint32_t fileno = 0x00850000;
             if ((length = tt_read_file(fd, fileno, debug, &fbuf)) < 0) {
@@ -540,6 +542,8 @@ int main(int argc, const char **argv)
                 free(fbuf);
             }
         }
+
+//        tt_tell_time(fd);
 
         if (get_activities) {
             uint16_t *list;
@@ -588,6 +592,8 @@ int main(int argc, const char **argv)
                 }
             }
         }
+
+//        tt_tell_time(fd);
 
         if (update_gps) {
             fputs("Updating QuickFixGPS...\n", stderr);

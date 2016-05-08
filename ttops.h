@@ -33,6 +33,7 @@ int tt_write_file(int fd, uint32_t fileno, int debug, const uint8_t *buf, uint32
 int tt_delete_file(int fd, uint32_t fileno);
 int tt_list_sub_files(int fd, uint32_t fileno, uint16_t **outlist);
 int tt_reboot(int fd);
+int tt_tell_time(int fd);
 
 static inline int
 EXPECT_BYTES(int fd, uint8_t *buf)

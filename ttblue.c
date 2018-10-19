@@ -322,7 +322,7 @@ int main(int argc, const char **argv)
     TTDEV *ttd;
 
     // parse args
-    char ch;
+    int ch;
     poptContext optCon = poptGetContext(NULL, argc, argv, options, 0);
 
     while ((ch=poptGetNextOpt(optCon))>=0) {
@@ -504,7 +504,7 @@ int main(int argc, const char **argv)
         // prompt for pairing code
         if (new_pair) {
             fputs(PAIRING_CODE_PROMPT, stderr);
-            if (!(scanf("%d%c", &dev_code, &ch) && isspace(ch))) {
+            if (!(scanf("%d%d", &dev_code, &ch) && isspace(ch))) {
                 fprintf(stderr, "Pairing code should be 6-digit number.\n");
                 goto fatal;
             }

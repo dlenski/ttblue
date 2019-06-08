@@ -6,8 +6,6 @@
 
 struct tt_handles { uint16_t ppcp, passcode, magic, cmd_status, length, transfer, check; };
 
-struct tt_files { uint32_t hostname, preference, manifest, activity_start, gps_status, quickgps; };
-
 struct ble_dev_info {
     uint16_t handle;
     const char *name;
@@ -31,7 +29,7 @@ typedef struct ttdev {
 TTDEV *tt_device_init(int protocol_version, int fd);
 bool tt_device_done(TTDEV *d);
 struct ble_dev_info *tt_check_device_version(TTDEV *d, bool warning);
-int tt_authorize(TTDEV *d, uint32_t code);
+int tt_authorize(TTDEV *d, char code[6], bool new_code);
 int tt_read_file(TTDEV *d, uint32_t fileno, int debug, uint8_t **buf);
 int tt_write_file(TTDEV *d, uint32_t fileno, int debug, const uint8_t *buf, uint32_t length, uint32_t write_delay);
 int tt_delete_file(TTDEV *d, uint32_t fileno);

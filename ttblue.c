@@ -481,7 +481,7 @@ int main(int argc, const char **argv)
                     write_delay = 1250 * ppcp.min_interval; // (microseconds)
                     if (debug > 1) {
                         fprintf(stderr, "Throttling file write to 1 packet every %d microseconds.\n", write_delay);
-                        fprintf(stderr, "min_interval=%d, max_interval=%d, slave_latency=%d, timeout_mult=%d\n", ppcp.max_interval, ppcp.min_interval, ppcp.slave_latency, ppcp.timeout_mult);
+                        fprintf(stderr, "min_interval=%d, max_interval=%d, slave_latency=%d, timeout_mult=%d\n", ppcp.min_interval, ppcp.max_interval, ppcp.slave_latency, ppcp.timeout_mult);
                     }
                 }
             }

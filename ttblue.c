@@ -29,6 +29,7 @@
 #include "bbatt.h"
 #include "ttops.h"
 #include "util.h"
+#include "ttblue.h"
 
 const char *PLEASE_SETCAP_ME =
     "**********************************************************\n"
@@ -228,12 +229,12 @@ read_gqf_status(TTDEV *ttd, int debug)
     time_t last_update = 0;
     uint8_t *fbuf;
     int length;
-    if ((length=tt_read_file(ttd, ttd->files->gps_status, debug, &fbuf)) < 0) {
-        fprintf(stderr, "WARNING: Could not read GPS status file 0x%08x from watch.\n", ttd->files->gps_status);
+    if ((length=tt_read_file(ttd, TTBLUE_FILE_GPS_STATUS, debug, &fbuf)) < 0) {
+        fprintf(stderr, "WARNING: Could not read GPS status file 0x%08x from watch.\n", TTBLUE_FILE_GPS_STATUS);
         last_update = -1;
     } else {
 #ifdef DUMP_0x00020001
-        save_buf_to_file(make_tt_filename(ttd->files->gps_status, "bin"), "wxb", fbuf, length, 2, true);
+        save_buf_to_file(make_tt_filename(TTBLUE_FILE_GPS_STATUS, "bin"), "wxb", fbuf, length, 2, true);
 #endif
         if (length > 6 && (fbuf[0x02] | fbuf[0x03] | fbuf[0x04] | fbuf[0x05]) != 0) {
             struct tm tmp = { .tm_mday = fbuf[0x05], .tm_mon = fbuf[0x04]-1, .tm_year = (((int)fbuf[0x02])<<8) + fbuf[0x03] - 1900 };
@@ -284,28 +285,29 @@ save_buf_to_file(const char *filename, const char *mode, const void *fbuf, int l
 int debug=1;
 int get_activities=0, set_time=0, update_gps=0, version=0, daemonize=0, new_pair=1;
 int sleep_success=3600, sleep_fail=10;
-uint32_t dev_code;
+char dev_code[6];
+char *read_code;
 char *activity_store=".", *dev_address=NULL, *interface=NULL, *postproc=NULL, *gqf_url=GQF_GPS_URL;
 
 struct poptOption options[] = {
-    { "auto", 'a', POPT_ARG_NONE, NULL, 'a', "Same as --get-activities --update-gps --set-time --version" },
-    { "get-activities", 0, POPT_ARG_NONE, &get_activities, 0, "Downloads and deletes .ttbin activity files from the watch" },
-    { "set-time", 0, POPT_ARG_NONE, &set_time, 0, "Set time zone on the watch to match this computer" },
-    { "activity-store", 's', POPT_ARG_STRING|POPT_ARGFLAG_SHOW_DEFAULT, &activity_store, 0, "Location to store .ttbin activity files", "PATH" },
-    { "post", 'p', POPT_ARG_STRING, &postproc, 0, "Command to run (with .ttbin file as argument) for every activity file", "CMD" },
-    { "update-gps", 0, POPT_ARG_NONE, NULL, 'G', "Download TomTom QuickFix update file and send it to the watch (if repeated, forces update even if not needed)" },
-    { "glonass", 0, POPT_ARG_NONE, NULL, 'g', "Use TomTom's GLONASS version of QuickFix update file." },
-    { "qf-url", 0, POPT_ARG_STRING, &gqf_url, 0, "Alternate URL for QuickFix update (ephemeris) file." },
-    { "device", 'd', POPT_ARG_STRING, &dev_address, 0, "Bluetooth MAC address of the watch (E4:04:39:__:__:__); will use first TomTom device if unspecified", "MACADDR" },
-    { "interface", 'i', POPT_ARG_STRING, &interface, 0, "Bluetooth HCI interface to use", "hciX" },
-    { "code", 'c', POPT_ARG_INT, &dev_code, 'c', "6-digit pairing code for the watch (if already paired)", "NUMBER" },
-    { "version", 'v', POPT_ARG_NONE, &version, 0, "Show watch firmware version and identifiers" },
-    { "debug", 'D', POPT_ARG_NONE, 0, 'D', "Increase level of debugging output" },
-    { "quiet", 'q', POPT_ARG_VAL, &debug, 0, "Suppress debugging output" },
-    { "daemon", 0, POPT_ARG_NONE, &daemonize, 0, "Run as a daemon which will try to connect repeatedly" },
-    { "wait-success", 'w', POPT_ARG_INT|POPT_ARGFLAG_SHOW_DEFAULT, &sleep_success, 0, "Wait time after successful connection to watch", "SECONDS" },
-    { "wait-fail", 'W', POPT_ARG_INT|POPT_ARGFLAG_SHOW_DEFAULT, &sleep_fail, 10, "Wait time after failed connection to watch", "SECONDS" },
-//    { "no-config", 'C', POPT_ARG_NONE, &config, 0, "Do not load or save settings from ~/.ttblue config file" },
+    { "auto", 'a', POPT_ARG_NONE, NULL, 0, "Same as --get-activities --update-gps --set-time --version" },
+    { "get-activities", 0, POPT_ARG_NONE, &get_activities, 1, "Downloads and deletes .ttbin activity files from the watch" },
+    { "set-time", 0, POPT_ARG_NONE, &set_time, 2, "Set time zone on the watch to match this computer" },
+    { "activity-store", 's', POPT_ARG_STRING|POPT_ARGFLAG_SHOW_DEFAULT, &activity_store, 3, "Location to store .ttbin activity files", "PATH" },
+    { "post", 'p', POPT_ARG_STRING, &postproc, 4, "Command to run (with .ttbin file as argument) for every activity file", "CMD" },
+    { "update-gps", 0, POPT_ARG_NONE, NULL, 5, "Download TomTom QuickFix update file and send it to the watch (if repeated, forces update even if not needed)" },
+    { "glonass", 0, POPT_ARG_NONE, NULL, 6, "Use TomTom's GLONASS version of QuickFix update file." },
+    { "qf-url", 0, POPT_ARG_STRING, &gqf_url, 7, "Alternate URL for QuickFix update (ephemeris) file." },
+    { "device", 'd', POPT_ARG_STRING, &dev_address, 8, "Bluetooth MAC address of the watch (E4:04:39:__:__:__); will use first TomTom device if unspecified", "MACADDR" },
+    { "interface", 'i', POPT_ARG_STRING, &interface, 9, "Bluetooth HCI interface to use", "hciX" },
+    { "code", 'c', POPT_ARG_STRING, &read_code, 10, "6-digit pairing code for the watch (if already paired)", "NUMBER" },
+    { "version", 'v', POPT_ARG_NONE, &version, 11, "Show watch firmware version and identifiers" },
+    { "debug", 'D', POPT_ARG_NONE, 0, 12, "Increase level of debugging output" },
+    { "quiet", 'q', POPT_ARG_VAL, &debug, 13, "Suppress debugging output" },
+    { "daemon", 0, POPT_ARG_NONE, &daemonize, 14, "Run as a daemon which will try to connect repeatedly" },
+    { "wait-success", 'w', POPT_ARG_INT|POPT_ARGFLAG_SHOW_DEFAULT, &sleep_success, 15, "Wait time after successful connection to watch", "SECONDS" },
+    { "wait-fail", 'W', POPT_ARG_INT|POPT_ARGFLAG_SHOW_DEFAULT, &sleep_fail, 16, "Wait time after failed connection to watch", "SECONDS" },
+//    { "no-config", 'C', POPT_ARG_NONE, &config, 17, "Do not load or save settings from ~/.ttblue config file" },
     POPT_AUTOHELP
     POPT_TABLEEND
 };
@@ -323,16 +325,15 @@ int main(int argc, const char **argv)
 
     // parse args
     int ch;
-    char dangling;
     poptContext optCon = poptGetContext(NULL, argc, argv, options, 0);
 
     while ((ch=poptGetNextOpt(optCon))>=0) {
         switch (ch) {
-        case 'c': new_pair=false; break;
-        case 'D': debug++; break;
-        case 'a': get_activities = update_gps = set_time = version = true; break;
-        case 'G': update_gps++; break;
-        case 'g': gqf_url = GQF_GLONASS_URL; break;
+        case 10: new_pair=false; break;
+        case 12: debug++; break;
+        case 0 : get_activities = update_gps = set_time = version = true; break;
+        case 5 : update_gps++; break;
+        case 6 : gqf_url = GQF_GLONASS_URL; break;
         }
     }
     if (ch<-1) {
@@ -367,6 +368,10 @@ int main(int argc, const char **argv)
     // get hostname
     char hostname[32];
     gethostname(hostname, sizeof hostname);
+
+    if (read_code != NULL) {
+        strcpy(dev_code, read_code);
+    }
 
     // prompt user to put device in pairing mode
     if (new_pair) {
@@ -505,15 +510,12 @@ int main(int argc, const char **argv)
         // prompt for pairing code
         if (new_pair) {
             fputs(PAIRING_CODE_PROMPT, stderr);
-            if (!(scanf("%d%c", &dev_code, &dangling) && isspace(dangling))) {
-                fprintf(stderr, "Pairing code should be 6-digit number.\n");
-                goto fatal;
-            }
+            fgets(dev_code, 7, stdin);
         }
 
         // authorize with the device
-        if (tt_authorize(ttd, dev_code) < 0) {
-            fprintf(stderr, "Device didn't accept pairing code %d.\n", dev_code);
+        if (tt_authorize(ttd, dev_code, new_pair) < 0) {
+            fprintf(stderr, "Device didn't accept pairing code %s.\n", dev_code);
             if (first) goto fatal; else goto fail;
         }
 
@@ -529,23 +531,25 @@ int main(int argc, const char **argv)
         int length;
 
         fprintf(stderr, "Setting PHONE menu to '%s'.\n", hostname);
-        tt_delete_file(ttd, ttd->files->hostname);
-        tt_write_file(ttd, ttd->files->hostname, false, (uint8_t*)hostname, strlen(hostname), write_delay);
+        tt_delete_file(ttd, TTBLUE_FILE_HOSTNAME1);
+        tt_write_file(ttd, TTBLUE_FILE_HOSTNAME1, false, (uint8_t*)hostname, strlen(hostname), write_delay);
+        tt_delete_file(ttd, TTBLUE_FILE_HOSTNAME2); // Write name to two files as V1 and V2 devices seem to use different files
+        tt_write_file(ttd, TTBLUE_FILE_HOSTNAME2, false, (uint8_t*)hostname, strlen(hostname), write_delay);
 
 #ifdef DUMP_0x000f20000
-        fprintf(stderr, "Reading preference file 0x%08x from watch...\n", ttd->files->preference);
-        if ((length=tt_read_file(ttd, ttd->files->preference, debug, &fbuf)) < 0) {
-            fprintf(stderr, "WARNING: Could not read preferences file 0x%08x from watch.\n", ttd->files->preference);
+        fprintf(stderr, "Reading preference file 0x%08x from watch...\n", TTBLUE_FILE_PREFERENCES_XML);
+        if ((length=tt_read_file(ttd, TTBLUE_FILE_PREFERENCES_XML, debug, &fbuf)) < 0) {
+            fprintf(stderr, "WARNING: Could not read preferences file 0x%08x from watch.\n", TTBLUE_FILE_PREFERENCES_XML);
         } else {
-            save_buf_to_file(make_tt_filename(ttd->files->preference, "xml"), "wxb", fbuf, length, 2, true);
+            save_buf_to_file(make_tt_filename(TTBLUE_FILE_PREFERENCES_XML, "xml"), "wxb", fbuf, length, 2, true);
             free(fbuf);
         }
 #endif
 
         if (set_time) {
-            fprintf(stderr, "Checking watch settings manifest file 0x%08x...\n", ttd->files->manifest);
-            if ((length = tt_read_file(ttd, ttd->files->manifest, debug, &fbuf)) < 0) {
-                fprintf(stderr, "WARNING: Could not read settings manifest file 0x%08x from watch!\n", ttd->files->manifest);
+            fprintf(stderr, "Checking watch settings manifest file 0x%08x...\n", TTBLUE_FILE_MANIFEST1);
+            if ((length = tt_read_file(ttd, TTBLUE_FILE_MANIFEST1, debug, &fbuf)) < 0) {
+                fprintf(stderr, "WARNING: Could not read settings manifest file 0x%08x from watch!\n", TTBLUE_FILE_MANIFEST1);
             } else {
                 // based on: https://github.com/ryanbinns/ttwatch/tree/master/manifest
                 // the position of the UTC-offset in the manifest is 169 in all known firmware versions, so lazily hard-coded here for now
@@ -565,8 +569,8 @@ int main(int argc, const char **argv)
                     if (btohl(*watch_timezone) != lt->tm_gmtoff) {
                         fprintf(stderr, "  Changing timezone from UTC%+d to UTC%+ld.\n", btohl(*watch_timezone), lt->tm_gmtoff);
                         *watch_timezone = htobl(lt->tm_gmtoff);
-                        tt_delete_file(ttd, ttd->files->manifest);
-                        tt_write_file(ttd, ttd->files->manifest, false, fbuf, length, write_delay);
+                        tt_delete_file(ttd, TTBLUE_FILE_MANIFEST1);
+                        tt_write_file(ttd, TTBLUE_FILE_MANIFEST1, false, fbuf, length, write_delay);
                         needs_reboot = true;
                     }
                 }
@@ -576,7 +580,7 @@ int main(int argc, const char **argv)
 
         if (get_activities) {
             uint16_t *list;
-            int n_files = tt_list_sub_files(ttd, ttd->files->activity_start, &list);
+            int n_files = tt_list_sub_files(ttd, TTBLUE_FILE_TTBIN_DATA, &list);
 
             if (n_files < 0) {
                 fprintf(stderr, "Could not list activity files on watch!\n");
@@ -584,7 +588,7 @@ int main(int argc, const char **argv)
             }
             fprintf(stderr, "Found %d activity files on watch.\n", n_files);
             for (int ii=0; ii<n_files; ii++) {
-                uint32_t fileno = ttd->files->activity_start + list[ii];
+                uint32_t fileno = TTBLUE_FILE_TTBIN_DATA + list[ii];
 
                 fprintf(stderr, "  Reading activity file 0x%08X ...\n", fileno);
                 term_title("ttblue: Transferring activity %d/%d", ii+1, n_files);
@@ -668,8 +672,8 @@ int main(int argc, const char **argv)
                             goto fail;
                         } else {
                             fclose (f);
-                            tt_delete_file(ttd, ttd->files->quickgps);
-                            result = tt_write_file(ttd, ttd->files->quickgps, debug, fbuf, length, write_delay);
+                            tt_delete_file(ttd, TTBLUE_FILE_GPSQUICKFIX_DATA);
+                            result = tt_write_file(ttd, TTBLUE_FILE_GPSQUICKFIX_DATA, debug, fbuf, length, write_delay);
                             free(fbuf);
                             if (result < 0) {
                                 fputs("Failed to send QuickFixGPS update to watch.\n", stderr);
@@ -678,7 +682,7 @@ int main(int argc, const char **argv)
                                 // official TomTom Android app seems to only issue this
                                 // "magic" update command when the GPS is brand new or
                                 // after a factory reset, or with 3x --update-gps
-                                att_wrreq(ttd->fd, ttd->h->cmd_status, BARRAY(0x05, 0x01, 0x00, 0x01), 4);
+                                att_wrreq(ttd->fd, ttd->h->cmd_status, BARRAY(MSG_UPDATE_EPHEMERIS, 0x01, 0x00, 0x01), 4);
 
                                 time_t last_gqf_update = read_gqf_status(ttd, debug-1);
                                 if (last_gqf_update != -1 && last_gqf_update != 0)
